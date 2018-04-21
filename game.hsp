@@ -1,0 +1,560 @@
+#packopt hide 1
+
+#include "hspmath.as"
+
+screen_width = 480
+screen_height = 640
+
+picture_size = 64
+picture_buffer = 1
+
+title_buffer = 4
+title_width = 480
+title_height = 250
+title_bgm_buffer = 5
+
+bgm_buffer = 6
+
+
+button_width = 192
+button_height = 64
+button_buffer = 2
+button_start = 0
+button_ranking = 2
+button_credit = 4
+button_config = 6
+button_exit = 8
+
+background_buffer = 3
+
+key_left = 1
+key_right = 4
+key_up = 2
+key_down = 8
+key_space = 16
+key_esc = 128
+key_x = 0
+key_z = 0
+keycode_x = 88
+keycode_z = 90
+
+mouse_left = 256
+mouse_right = 512
+
+high_score = 0
+
+gravity = 0.2		; 重力加速度
+level = 20
+
+randomize
+
+;; 初期化
+*initialize
+	; 画像ロード
+	buffer picture_buffer
+	celload "images.bmp", picture_buffer		; 画像をバッファに読み込む。(画像ファイル, バッファID)
+	celdiv picture_buffer, picture_size, picture_size		; バッファの画像を分割してIDをつける（バッファID, width, height)
+
+	buffer button_buffer
+	celload "buttons.bmp", button_buffer
+	celdiv button_buffer, button_width, button_height
+	
+	buffer background_buffer
+	celload "background.bmp", background_buffer
+
+	buffer title_buffer
+	celload "title.bmp", title_buffer
+
+	; 音楽ロード
+	mmload "jazz.wav", title_bgm_buffer, 1
+	mmload "neocity.wav", bgm_buffer, 1
+
+	; データロード
+	notesel scores_note
+	noteload "scores.txt"
+	noteget high_score, 0
+	
+	; Window初期化
+	screen 0, screen_width, screen_height		; ウィンドウを初期化。(ウィンドウID, width, height)
+	title "ぱくぱくアップル"
+	
+
+	
+	mmplay title_bgm_buffer
+
+;; タイトル画面
+*enter
+	clrobj
+
+	; ボタン設定
+	objsize button_width, button_height		; 次に描画するオブジェクトのサイズを設定(width, height)
+	
+	; ボタン描画
+	pos screen_width/2 - button_width/2, screen_height - button_height * 5
+	objimage button_buffer, 0, 0, 0, button_height, 0, button_height	; ボタンの画像変更(バッファID, （通常・押し下げ・ホバーの３状態の画像のX・Y左上座標))
+	button "", *game		; ボタンを描画（メッセージ、押し下げ時ジャンプするラベル）
+	
+	pos screen_width/2 - button_width/2, screen_height - button_height * 4
+	objimage button_buffer, 0, button_height*button_ranking, 0, button_height*(button_ranking+1), 0, button_height*(button_ranking+1)
+	button "", *ranking
+	
+	pos screen_width/2 - button_width/2, screen_height - button_height * 3
+	objimage button_buffer, 0, button_height*button_credit, 0, button_height*(button_credit+1), 0, button_height*(button_credit+1)
+	button "", *credit
+	
+	pos screen_width/2 - button_width/2, screen_height - button_height * 2
+	objimage button_buffer, 0, button_height*button_config, 0, button_height*(button_config+1), 0, button_height*(button_config+1)
+	button "", *config
+	
+	pos screen_width/2 - button_width/2, screen_height - button_height
+	objimage button_buffer, 0, button_height*button_exit, 0, button_height*(button_exit+1), 0, button_height*(button_exit+1)		; ボタン戻す
+	button "", *exit
+	
+	objimage
+	objsize
+	
+	; タイトル表示
+
+		
+	repeat
+		redraw 0
+		color 255,255,255
+		boxf 
+	
+		player_rotate_in_title = 0.01 + player_rotate_in_title
+
+		pos screen_width - picture_size, picture_size*2
+
+		gmode 2, picture_size, picture_size
+		grotate picture_buffer, 0, 0, player_rotate_in_title * M_PI, picture_size, picture_size
+		
+		pos 0, 0	
+		gcopy title_buffer, 0, 0, title_width, title_height	
+		redraw 1
+		await 16
+	loop
+	
+;; ランキング表示する？
+*ranking
+	; データつくり祭り
+	/*
+	clrobj
+	objmode 2
+	font "MS Gothic", 32
+	sdim data
+	repeat notemax
+		noteget l, cnt
+		if cnt \ 2 = 0 {
+			data = data + ""+ (cnt / 2 + 1) + "位 " + l + "pt" 
+		} else {
+			data = data + " " + l + "\n"
+		}
+	loop
+	
+	pos 0, 0
+	mesbox data, screen_width, screen_height - 40, 0
+	objmode
+	button "戻る", *initialize
+*/
+	
+	clrobj
+	tmp_y = ginfo(13)
+	font "ＭＳ ゴシック", 32
+	sdim data
+	repeat notemax / 2
+		noteget tmp_pt, cnt*2
+		noteget l, cnt*2+1
+		data += strf("%d位 %s[pt] %s\n", cnt+1, tmp_pt, l)
+	loop
+	pos 0, 0 : button "戻る", *initialize
+	repeat
+		redraw 0
+		color 255, 255, 255 : boxf : color
+			pos 8, tmp_y : mes data
+			tmp_y--
+			if ( tmp_y <= -20*notemax ) : tmp_y = ginfo(13)
+		redraw 1
+		await 16
+	loop
+	stop
+	
+*credit
+	clrobj
+		pos 0, screen_height - 40
+	button "戻る", *enter	
+			
+	repeat
+		redraw 0
+		color 255,255,255
+		boxf 
+	
+		player_rotate_in_title = 0.01 + player_rotate_in_title
+
+		pos screen_width - picture_size, picture_size*2
+
+		gmode 2, picture_size, picture_size
+		grotate picture_buffer, 0, 0, player_rotate_in_title * M_PI, picture_size, picture_size
+		
+		pos 0, 0	
+		gcopy title_buffer, 0, 0, title_width, title_height	
+	
+	color 0,0,0
+	font "MS Gothic", 40
+	pos 0, screen_height / 2
+
+	mes "プログラム　ふるつき"
+	mes "プログラム監修 ptr-yudai"
+	
+	pos 0, screen_height / 2 + 160
+	
+	mes "イラスト・原案　kaiwai"
+	mes "音楽 かおす"	
+
+	
+	redraw 1
+	await 16 
+	loop 
+*config
+	clrobj
+	
+	pos 0, screen_height - 40
+	button "戻る", *enter
+	
+	repeat
+		redraw 0
+		color 255,255,255
+		boxf 
+	
+		player_rotate_in_title = 0.01 + player_rotate_in_title
+
+		pos screen_width - picture_size, picture_size*2
+
+		gmode 2, picture_size, picture_size
+		grotate picture_buffer, 0, 0, player_rotate_in_title * M_PI, picture_size, picture_size
+		
+		pos 0, 0	
+		gcopy title_buffer, 0, 0, title_width, title_height
+	
+		color 0,0,0
+		font "MS Gothic", 40
+		pos 0, screen_height / 2
+	
+		mes "設定する項目がないです"
+		
+		redraw 1
+		await 16
+	loop
+	
+;; ゲーム本体
+*game
+	clrobj
+	
+	mmstop
+	mmplay bgm_buffer
+
+	score = 0.0
+	combo = 0
+	
+	; player用変数
+	player_x = 0.0
+	player_y = screen_height - picture_size
+	player_degree = 1.5 		; 右向き正で、単位はラジアン。piを抜いて管理する
+	player_speed = 4
+	player_gravity = 0.5
+	player_rotate_speed = 0.1
+	player_accel_y = 0.0		; 速度
+	player_status = status_normal
+	status_normal = 0
+	status_jump = 1
+	status_roll = 2
+	
+	; item変数
+	non_apple = 0
+	normal_apple = 1
+	bad_apple = 2
+	totemo_bad_apple = 3
+	
+	any_apple_engage_per = level		; あらゆるリンゴの出現率だって変わる
+	normal_apple_engage_per = 100 - level * 3		; 出現率
+	bad_apple_engage_per = level * 2
+	totemo_bad_apple_engage_per = level
+	
+	combo_plusone = " UP!"
+	combo_count = 0
+	
+	point_image = 0
+	point_count = 0
+	point_image_x = 0
+	point_image_y = 0
+	
+	apple_number = 0		; 何個のリンゴが存在しているか
+	apple_number_max = 100
+	dim apples_status, apple_number_max
+	dim apples_x, apple_number_max
+	dim apples_y, apple_number_max
+	dim apples_vector_x, apple_number_max
+	dim apples_vector_y, apple_number_max
+	dim apples_score, 4		; リンゴによって得られるスコア
+	
+	apples_score.normal_apple = 50
+	apples_score.bad_apple = -10
+	apples_score.totemo_bad_apple = -50
+	
+	
+	
+	gmode 2, picture_size, picture_size		; 画像をコピーするときの設定(モード（2 = 黒を透過), width, height)
+	font "MS Gothic", 32
+	
+	repeat
+		redraw 0
+		color 255,255,255
+		boxf
+		
+		; 入力部
+		key_x = 0		; 変数初期化
+		key_z = 0
+		stick stick_key, key_left|key_right|key_up|key_down|key_space		; よく使うキーの入力情報(状態格納先, 押しっぱなしを検出するキーのコード）
+		getkey key_x, keycode_x
+		getkey key_z, keycode_z
+	
+		; 終了判定
+		if stick_key&key_esc {
+			dialog "終了しますか？", 2, "確認"		; ダイアログボックス(msg, type(2=YesNo)) 
+			if stat = 6 {
+				goto *save
+			}
+			continue
+		}
+		
+		; プレイヤ計算部
+		 ; 緊急移動(スコアを消費する予定)
+		if key_x = 1 {
+			player_x = player_x + 20
+			if score < 100 {
+				score = score - 1
+			} else  {
+				score = 1.0*score - abs(0.01 * score)
+			}
+		}
+		if key_z = 1 {
+			player_x = player_x - 20
+			if score < 100 {
+				score = score - 1
+			} else {
+				score = 1.0*score - abs(0.01 * score)
+			}
+		}
+		 ; ジャンプ
+		if player_status == status_normal {		; ジャンプ開始の判定
+			if stick_key&key_space {
+				player_status = status_jump
+				player_accel_y = -1.0 * player_gravity * 30
+			}
+		}
+		if player_status = status_jump {		; 降下
+			if stick_key&key_down {
+				player_accel_y = player_accel_y + 5
+			}
+		}
+		if player_status == status_jump {		; ジャンプ終了の判定
+			if player_y >= screen_height - picture_size {
+				player_status = status_normal
+			}
+		}
+		
+		; 移動
+		if player_status == status_normal {
+			if stick_key&key_left : player_x = player_x - player_rotate_speed * 100.0
+			if stick_key&key_right : player_x = player_x + player_rotate_speed * 100.0
+		}
+		 ; 回転
+		if player_rotate_speed > 0.05 {
+			player_rotate_speed = player_rotate_speed - 0.01
+		}
+		if player_rotate_speed < 0.05 {
+			player_rotate_speed = 0.05
+		}
+		if player_status = status_jump {
+			player_rotate_speed = 0.5
+		}
+		if stick_key&key_left {
+			player_degree = player_degree - player_rotate_speed
+		}
+		if stick_key&key_right {
+			player_degree = player_degree + player_rotate_speed
+		}
+		 ; 重力の適用
+		player_accel_y = player_accel_y + player_gravity		; 加速
+		if player_y + picture_size > screen_height : player_accel_y = 0		; 着地していたら加速しない
+		player_y = player_y + player_accel_y		; y座標に加算
+	
+		
+		 ; 座標修正
+		if player_y < 0 : player_y = 0
+		if player_y + picture_size > screen_height : player_y = screen_height - picture_size
+		if player_x < 0 : player_x = 0
+		if player_x + picture_size > screen_width : player_x = screen_width - picture_size
+	
+		; アイテム計算部
+	
+		 ; 出現
+		if rnd(400) + 1 <= any_apple_engage_per {
+			;　出るリンゴの種類
+			kind_of_appearing_apple = 0
+			if rnd(100) + 1 <= normal_apple_engage_per {
+				kind_of_appearing_apple = normal_apple
+			} else : if rnd(100) + 1 <= bad_apple_engage_per {
+				kind_of_appearing_apple = bad_apple
+			} else : if rnd(100) + 1 <= totemo_bad_apple_engage_per {
+				kind_of_appearing_apple = totemo_bad_apple
+			}
+	
+			; 出るリンゴの座標
+			appearing_x = rnd(screen_width - picture_size)
+			appearing_y = -picture_size
+	
+			; リンゴ出す処理
+			repeat apple_number_max
+				if apples_status.cnt = non_apple {
+					apples_status.cnt = kind_of_appearing_apple
+					apples_x.cnt = appearing_x
+					apples_y.cnt = appearing_y
+					apples_vector_y.cnt = 0.0
+					break
+				}
+			loop	
+		}
+	
+		 ; リンゴ計算部
+		repeat apple_number_max
+			if apples_status.cnt = non_apple : continue
+			if apples_y.cnt > screen_height {
+				apples_status.cnt = non_apple
+				continue
+			}
+			apples_vector_y.cnt = apples_vector_y.cnt + gravity
+			apples_y.cnt = apples_y.cnt + apples_vector_y.cnt
+		loop
+	
+		; 食べる部
+		repeat apple_number_max
+			if apples_status.cnt = non_apple : continue
+			x = (player_x + picture_size/2) - (apples_x.cnt + picture_size/2)		; 距離を求める
+			y = (player_y + picture_size/2) - (apples_y.cnt + picture_size/2)
+			r = picture_size
+			if x*x + y*y <= r*r {		; 三平方で円のあたり判定
+				if round(player_degree) \ 2 = 0 {		; 上向き判定
+					apple = apples_status.cnt
+					if apple = normal_apple {
+						combo = combo + 1
+						combo_count = 16		; 16フレームこんぼ表示
+						
+					} else {
+						combo = 0
+						combo_count = 0
+					}
+					point_image_x = player_x
+					point_image_y = player_y - picture_size
+					point_count = 16
+					score_t = 0
+					score_t = apples_score.(apple) + 0.5 * combo * level
+					if score_t > 0 {
+
+						if player_status = status_jump  {
+							score = score + score_t * 2
+							point_image = "+" + score_t + "× 2"
+						} else {
+							score = score + score_t
+							point_image = "+"  + score_t
+						}
+						
+					} else {
+						point_image = score_t
+						score = score + score_t
+					}
+					
+					apples_status.cnt = non_apple
+				}
+			}
+		loop
+	
+		; 背景描画部
+		pos 0, 0
+		gcopy background_buffer, 0, 0, screen_width, screen_height
+		; リンゴ描画部
+		repeat apple_number_max
+			if apples_status.cnt = non_apple : continue
+
+			pos apples_x.cnt, apples_y.cnt
+			gcopy picture_buffer, picture_size * apples_status.cnt, 0, picture_size, picture_size
+		loop
+		; プレイヤ描画部
+		color 0,0,255
+		pos player_x + picture_size/2, player_y + picture_size/2		; grotateで描画するときは座標の中心を指定
+		grotate picture_buffer, 0, 0, player_degree * M_PI		; 画像を描画（バッファID,　左上、右上座標、　回転）
+
+	
+		pos 0, 0
+		mes "Score: " + (0 + score)
+		pos 0, picture_size
+		if combo_count > 0 {
+			mes "Combo: " + combo + combo_plusone
+			combo_count = combo_count - 1
+		} else {
+			mes "Combo: " + combo
+		}
+		if point_count > 0 {
+			pos point_image_x, point_image_y
+			mes point_image
+			point_count = point_count - 1
+		}
+		redraw 1
+		await 16
+	loop
+	stop
+	
+;; ゲームの終わり
+*save
+	; 事前計算（何位か）
+	notescores = notemax / 2		; notemaxはまくろ。noteの行数を得る
+	rank = 0
+	repeat notescores
+		noteget past_score, cnt*2
+		rank = cnt
+		if int(past_score) < score : break
+		if rank == notescores-1 : rank++
+	loop
+	
+	; ちょっと描画
+	redraw 0
+	color 255,255,255
+	boxf
+	redraw 1
+	color 0,0,0
+	pos 0, 0
+	if rank = 0 {
+		mes "ハイスコアおめでとうございます！"
+	} else {
+		mes "" + (rank + 1) + "位でした"
+	}
+	
+	sdim name
+	mes "お名前"
+	input name, 300, 20, 64
+	button "記録する", *save2
+	
+	stop 
+	
+;; くそネーミング
+*save2
+	noteadd str(int(score)), rank*2		; 挿入
+	noteadd name, rank*2+1
+	notesave "scores.txt"
+	
+	goto *initialize
+	
+;; 終了する
+*exit
+	end
+
+
